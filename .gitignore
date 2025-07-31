@@ -1,0 +1,19 @@
+# Security
+config/api_keys.ini
+*.key
+*.pem
+
+# Generated assets
+assets/output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+
+# System
+.DS_Store
+Thumbs.db
