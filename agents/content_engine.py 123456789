@@ -1,0 +1,472 @@
+import os
+import json
+import time
+import threading
+import queue
+from datetime import datetime
+from PIL import Image, ImageDraw, ImageFont
+import numpy as np
+import cv2
+import pyttsx3
+from openai import OpenAI
+from core.crypto import MilitaryCrypto
+from core.utils import logger, secure_fetch
+import schedule
+from io import BytesIO
+import base64
+import textwrap
+
+class ContentEngine:
+    def __init__(self, crypto_system: MilitaryCrypto):
+        self.crypto = crypto_system
+        self.name = "Polymorphic Content Engine"
+        self.role = "Multimedia Content Creator"
+        self.task_queue = queue.Queue()
+        self.running = True
+        self.thread = threading.Thread(target=self.run)
+        self.thread.daemon = True
+        self.thread.start()
+        
+        # Initialize APIs and engines
+        self.openai_client = OpenAI(api_key=secure_fetch('OPENAI_API_KEY'))
+        self.tts_engine = self._init_tts()
+        self.font = self._load_fonts()
+        
+        # Content templates and styles
+        self.styles = self._load_content_styles()
+        self.templates = self._load_templates()
+        
+        # Asset storage
+        self.generated_assets = {}
+        self.asset_lock = threading.Lock()
+        
+        logger(f"[{self.name}] Initialized with {len(self.styles)} content styles and {len(self.templates)} templates")
+
+    def run(self):
+        while self.running:
+            try:
+                task = self.task_queue.get(timeout=1)
+                self._process_task(task)
+            except queue.Empty:
+                schedule.run_pending()
+                time.sleep(0.1)
+    
+    def _process_task(self, task):
+        """Route tasks to appropriate handlers"""
+        if 'encrypted' in task:
+            task = self._decrypt_task(task)
+            
+        task_type = task.get('type')
+        
+        if task_type == 'content_plan':
+            self._generate_content_plan(task)
+        elif task_type == 'create_asset':
+            self._create_asset(task)
+        elif task_type == 'batch_create':
+            self._batch_create_assets(task)
+        elif task_type == 'update_templates':
+            self._update_templates()
+        else:
+            logger(f"[{self.name}] Unknown task type: {task_type}")
+
+    def _decrypt_task(self, encrypted_task):
+        """Decrypt incoming tasks"""
+        try:
+            decrypted = self.crypto.decrypt(encrypted_task['payload'])
+            return json.loads(decrypted)
+        except Exception as e:
+            logger(f"[{self.name}] Decryption failed: {str(e)}")
+            return {'error': 'decryption_failed'}
+
+    def _generate_content_plan(self, task):
+        """Create comprehensive content strategy"""
+        campaign = task['campaign']
+        logger(f"[{self.name}] Creating content plan for {campaign['product']}")
+        
+        # Generate strategy using AI
+        strategy = self._generate_with_gpt(
+            system_prompt="You're a viral content strategist. Create a multi-platform content plan.",
+            user_prompt=f"Product: {campaign['product']}\nTarget: {campaign['target_demo']}\nPlatforms: {', '.join(campaign['platforms'])}"
+        )
+        
+        # Create asset specifications
+        assets = []
+        for platform in campaign['platforms']:
+            assets.extend(self._platform_assets(platform, campaign))
+        
+        # Send to Social Infiltrator
+        self._send_results(
+            recipient='Infiltrator',
+            message_type='content_package',
+            content={
+                'strategy': strategy,
+                'assets': assets,
+                'campaign_id': campaign['id']
+            }
+        )
+
+    def _platform_assets(self, platform, campaign):
+        """Generate platform-specific asset specs"""
+        asset_types = {
+            'tiktok': [
+                {'type': 'video', 'duration': 15, 'style': 'trendy'},
+                {'type': 'caption', 'length': 150, 'tone': 'playful'}
+            ],
+            'instagram': [
+                {'type': 'image', 'aspect_ratio': '1:1', 'style': 'aesthetic'},
+                {'type': 'carousel', 'slides': 3, 'theme': 'benefits'}
+            ],
+            'facebook': [
+                {'type': 'video', 'duration': 60, 'style': 'informative'},
+                {'type': 'text', 'length': 300, 'tone': 'conversational'}
+            ],
+            'youtube': [
+                {'type': 'video', 'duration': 180, 'style': 'tutorial'},
+                {'type': 'thumbnail', 'style': 'clickable'}
+            ]
+        }
+        
+        assets = []
+        for spec in asset_types.get(platform, []):
+            assets.append({
+                'platform': platform,
+                'campaign_id': campaign['id'],
+                'specs': {
+                    **spec,
+                    'product': campaign['product'],
+                    'target_demo': campaign['target_demo']
+                }
+            })
+        return assets
+
+    def _create_asset(self, task):
+        """Generate individual content asset"""
+        asset_type = task['specs']['type']
+        logger(f"[{self.name}] Creating {asset_type} asset for {task['specs'].get('product', '')}")
+        
+        try:
+            if asset_type in ['image', 'thumbnail']:
+                result = self._generate_image(task['specs'])
+            elif asset_type == 'video':
+                result = self._generate_video(task['specs'])
+            elif asset_type in ['text', 'caption']:
+                result = self._generate_text(task['specs'])
+            elif asset_type == 'audio':
+                result = self._generate_audio(task['specs'])
+            else:
+                raise ValueError(f"Unknown asset type: {asset_type}")
+            
+            # Store generated asset
+            with self.asset_lock:
+                self.generated_assets[result['asset_id']] = result
+            
+            # Send to requester
+            self._send_results(
+                recipient=task.get('requester', 'Commander'),
+                message_type='asset_created',
+                content=result
+            )
+            
+        except Exception as e:
+            logger(f"[{self.name}] Asset creation failed: {str(e)}")
+            self._send_error(task.get('requester'), str(e))
+
+    def _batch_create_assets(self, task):
+        """Process multiple asset creation requests"""
+        logger(f"[{self.name}] Processing batch of {len(task['assets'])} assets")
+        for asset_task in task['assets']:
+            self._create_asset(asset_task)
+
+    def _generate_with_gpt(self, system_prompt, user_prompt, model="gpt-4-turbo"):
+        """Generic GPT content generation"""
+        response = self.openai_client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7
+        )
+        return response.choices[0].message.content
+
+    def _generate_text(self, specs):
+        """Generate marketing copy"""
+        tone_guide = {
+            'playful': "Use emojis and casual language",
+            'professional': "Formal tone with industry terms",
+            'urgent': "Create scarcity and FOMO",
+            'conversational': "Friendly, like you're talking to a friend"
+        }.get(specs.get('tone', 'conversational'), "")
+        
+        prompt = f"Write {specs.get('length', 200)}-character {specs.get('type')} about {specs['product']} for {specs['target_demo']}. {tone_guide}"
+        
+        content = self._generate_with_gpt(
+            system_prompt="You're a skilled marketing copywriter.",
+            user_prompt=prompt
+        )
+        
+        asset_id = f"text_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        return {
+            'asset_id': asset_id,
+            'type': 'text',
+            'content': content,
+            'specs': specs,
+            'created_at': datetime.now().isoformat()
+        }
+
+    def _generate_image(self, specs):
+        """Generate visual content (placeholder for actual SD API)"""
+        width, height = {
+            '1:1': (1080, 1080),
+            '16:9': (1280, 720),
+            '9:16': (720, 1280)
+        }.get(specs.get('aspect_ratio', '1:1'), (1080, 1080))
+        
+        # Create placeholder image
+        img = Image.new('RGB', (width, height), color='navy')
+        draw = ImageDraw.Draw(img)
+        
+        # Add text overlay
+        text = f"{specs['product']}\nFor {specs['target_demo']}"
+        font_size = width // 10
+        try:
+            font = ImageFont.truetype(self.font, font_size)
+        except:
+            font = ImageFont.load_default()
+            
+        text_width, text_height = draw.textsize(text, font=font)
+        x = (width - text_width) / 2
+        y = (height - text_height) / 2
+        
+        draw.text((x, y), text, font=font, fill='white')
+        
+        # Save to buffer
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        asset_id = f"img_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        return {
+            'asset_id': asset_id,
+            'type': 'image',
+            'content': img_base64,
+            'mime_type': 'image/png',
+            'specs': specs,
+            'created_at': datetime.now().isoformat()
+        }
+
+    def _generate_video(self, specs):
+        """Generate simple video (placeholder for actual API)"""
+        duration = specs.get('duration', 15)
+        width, height = 720, 1280  # Vertical format
+        
+        # Create blank frames
+        frames = []
+        for i in range(duration * 10):  # 10fps
+            frame = np.zeros((height, width, 3), dtype=np.uint8)
+            
+            # Add simple animation
+            cv2.putText(frame, specs['product'], 
+                        (width//4, height//2 - 50), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, 
+                        (255, 255, 255), 2)
+            
+            cv2.putText(frame, f"Frame {i+1}/{duration*10}", 
+                        (width//4, height//2 + 50), 
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, 
+                        (255, 255, 255), 1)
+            
+            frames.append(frame)
+        
+        # Save temporary video
+        filename = f"temp_video_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp4"
+        out = cv2.VideoWriter(filename, 
+                            cv2.VideoWriter_fourcc(*'mp4v'), 
+                            10, (width, height))
+        
+        for frame in frames:
+            out.write(frame)
+        out.release()
+        
+        # Read back as base64
+        with open(filename, 'rb') as f:
+            video_data = base64.b64encode(f.read()).decode('utf-8')
+        
+        # Cleanup
+        os.remove(filename)
+        
+        asset_id = f"vid_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        return {
+            'asset_id': asset_id,
+            'type': 'video',
+            'content': video_data,
+            'mime_type': 'video/mp4',
+            'specs': specs,
+            'created_at': datetime.now().isoformat()
+        }
+
+    def _generate_audio(self, specs):
+        """Generate voiceover audio"""
+        script = specs.get('script', 
+                          f"Introducing {specs['product']}, the perfect solution for {specs['target_demo']}")
+        
+        # Generate with local TTS
+        filename = f"audio_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp3"
+        self.tts_engine.save_to_file(script, filename)
+        self.tts_engine.runAndWait()
+        
+        # Read back as base64
+        with open(filename, 'rb') as f:
+            audio_data = base64.b64encode(f.read()).decode('utf-8')
+        
+        # Cleanup
+        os.remove(filename)
+        
+        asset_id = f"aud_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        return {
+            'asset_id': asset_id,
+            'type': 'audio',
+            'content': audio_data,
+            'mime_type': 'audio/mpeg',
+            'specs': specs,
+            'created_at': datetime.now().isoformat()
+        }
+
+    def _update_templates(self):
+        """Refresh content templates from storage"""
+        logger(f"[{self.name}] Updating content templates...")
+        self.templates = self._load_templates()
+        self.styles = self._load_content_styles()
+        logger(f"[{self.name}] Loaded {len(self.templates)} templates and {len(self.styles)} styles")
+
+    def _load_templates(self):
+        """Load content templates (simulated)"""
+        return {
+            'tech_product': {
+                'image': {'palette': 'cool', 'layout': 'minimal'},
+                'video': {'pace': 'fast', 'transitions': 'digital'},
+                'text': {'tone': 'futuristic', 'length': 'medium'}
+            },
+            'lifestyle': {
+                'image': {'palette': 'warm', 'layout': 'balanced'},
+                'video': {'pace': 'moderate', 'transitions': 'smooth'},
+                'text': {'tone': 'inspirational', 'length': 'short'}
+            }
+        }
+
+    def _load_content_styles(self):
+        """Load style guides (simulated)"""
+        return {
+            'trendy': {
+                'colors': ['#FF3E4D', '#2D3047', '#F8C537'],
+                'fonts': ['sans-serif-bold', 'modern'],
+                'elements': ['gradients', 'geometric shapes']
+            },
+            'aesthetic': {
+                'colors': ['#F7EBEC', '#DDBDD5', '#AC9FBB'],
+                'fonts': ['serif', 'thin'],
+                'elements': ['negative space', 'soft focus']
+            }
+        }
+
+    def _load_fonts(self):
+        """Try to load fonts, fallback to default"""
+        try:
+            # Try common Windows fonts
+            font_paths = [
+                'C:/Windows/Fonts/Arial.ttf',
+                'C:/Windows/Fonts/Calibri.ttf',
+                'C:/Windows/Fonts/Tahoma.ttf'
+            ]
+            for path in font_paths:
+                if os.path.exists(path):
+                    return path
+            return None
+        except:
+            return None
+
+    def _init_tts(self):
+        """Initialize text-to-speech engine"""
+        engine = pyttsx3.init()
+        # Set Windows TTS properties
+        voices = engine.getProperty('voices')
+        engine.setProperty('voice', voices[0].id)  # First available voice
+        engine.setProperty('rate', 150)  # Words per minute
+        return engine
+
+    def _send_results(self, recipient, message_type, content):
+        """Encrypt and send results to other agents"""
+        payload = {
+            'type': message_type,
+            'content': content,
+            'timestamp': datetime.now().isoformat(),
+            'origin': self.name
+        }
+        
+        encrypted = self.crypto.encrypt(json.dumps(payload))
+        message = {
+            'to': recipient,
+            'payload': encrypted,
+            'encrypted': True
+        }
+        
+        # In production, this would use message broker
+        logger(f"[{self.name}] Sending {message_type} to {recipient}")
+
+    def _send_error(self, recipient, error_msg):
+        """Send error notification"""
+        self._send_results(
+            recipient=recipient,
+            message_type='creation_error',
+            content={'error': error_msg}
+        )
+
+    def receive_message(self, message):
+        """Public interface for receiving tasks"""
+        self.task_queue.put(message)
+
+    def shutdown(self):
+        """Gracefully shutdown the engine"""
+        self.running = False
+        logger(f"[{self.name}] Shutting down...")
+        self.thread.join(timeout=5)
+        logger(f"[{self.name}] Shutdown complete")
+
+# Standalone test
+if __name__ == "__main__":
+    from core.crypto import MilitaryCrypto
+    
+    print("Testing Content Engine...")
+    crypto = MilitaryCrypto()
+    engine = ContentEngine(crypto)
+    
+    # Test text generation
+    engine.receive_message({
+        'type': 'create_asset',
+        'specs': {
+            'type': 'text',
+            'product': 'AI Marketing Assistant',
+            'target_demo': 'Digital Marketers',
+            'length': 200,
+            'tone': 'professional'
+        }
+    })
+    
+    # Test image generation
+    engine.receive_message({
+        'type': 'create_asset',
+        'specs': {
+            'type': 'image',
+            'product': 'Smart Water Bottle',
+            'target_demo': 'Fitness Enthusiasts',
+            'aspect_ratio': '1:1',
+            'style': 'trendy'
+        }
+    })
+    
+    # Allow time for processing
+    time.sleep(5)
+    
+    # Shutdown
+    engine.shutdown()
+    print("Content Engine test completed.")
