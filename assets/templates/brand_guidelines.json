@@ -1,0 +1,33 @@
+{
+    "brand_identity": {
+        "logo": {
+            "primary": "logos/main_logo.png",
+            "variants": {
+                "dark": "logos/dark_mode.png",
+                "icon": "logos/favicon.ico"
+            },
+            "clear_space": 20
+        },
+        "colors": {
+            "primary": "#2D3047",
+            "secondary": "#FF3E4D",
+            "accent": "#F8C537",
+            "neutral": ["#FFFFFF", "#F0F0F0", "#333333"]
+        },
+        "typography": {
+            "headings": "Roboto Bold",
+            "body": "Roboto Regular",
+            "fallback_stack": "Arial, sans-serif"
+        }
+    },
+    "usage_rules": {
+        "logo": {
+            "min_size": 100,
+            "prohibited_alterations": ["rotation", "stretching"]
+        },
+        "color": {
+            "accessibility_contrast": 4.5,
+            "restricted_combinations": ["primary+secondary"]
+        }
+    }
+}
