@@ -1,7 +1,46 @@
 [API_KEYS]
-OPENAI_API_KEY = your_openai_key_here
-#ELEVENLABS_API_KEY = your_elevenlabs_key_here
-#STABILITY_API_KEY = your_stability_key_here
+; Add your actual API keys here (this file is just a template)
+OPENAI_API_KEY = your_openai_api_key_here
+ELEVENLABS_API_KEY = your_elevenlabs_api_key_here
+STABILITY_API_KEY = your_stability_api_key_here
+TWITTER_API_KEY = your_twitter_api_key_here
+FACEBOOK_APP_SECRET = your_facebook_app_secret_here
+INSTAGRAM_ACCESS_TOKEN = your_instagram_token_here
+TIKTOK_ACCESS_TOKEN = your_tiktok_token_here
 
 [SECURITY]
-ENCRYPTION_KEY = generate_with:python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+; Generate a new key with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+ENCRYPTION_KEY = your_encryption_key_here
+
+[PERFORMANCE]
+; Maximum concurrent campaigns
+MAX_CONCURRENT_CAMPAIGNS = 3
+; Image generation quality (1-100)
+IMAGE_QUALITY = 85
+; Enable/disable video processing
+VIDEO_ENABLED = True
+; Maximum video duration in seconds
+MAX_VIDEO_DURATION = 180
+
+[LOGGING]
+; Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+LOG_LEVEL = INFO
+; Maximum log file size in MB
+MAX_LOG_SIZE = 10
+; Number of backup logs to keep
+LOG_BACKUPS = 5
+
+[PLATFORM_DEFAULTS]
+; Default posting schedule (24h format)
+INSTAGRAM_POST_TIMES = 09:00, 13:00, 18:00
+TIKTOK_POST_TIMES = 11:00, 17:00, 21:00
+FACEBOOK_POST_TIMES = 08:00, 12:00, 19:00
+TWITTER_POST_TIMES = 07:00, 12:00, 16:00
+
+[ANALYTICS]
+; Engagement rate threshold for alerts
+ENGAGEMENT_THRESHOLD = 0.02
+; Conversion rate threshold
+CONVERSION_THRESHOLD = 0.001
+; Days to retain analytics data
+DATA_RETENTION_DAYS = 30
