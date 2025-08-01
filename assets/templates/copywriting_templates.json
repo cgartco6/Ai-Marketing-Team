@@ -1,0 +1,22 @@
+{
+    "product_launch": {
+        "formats": {
+            "tiktok": {
+                "structure": "PAS (Problem-Agitate-Solve)",
+                "max_length": 150,
+                "hashtags": ["#newproduct", "#innovation"],
+                "emojis": ["🚀", "✨"]
+            },
+            "instagram": {
+                "structure": "AIDA (Attention-Interest-Desire-Action)",
+                "max_length": 300,
+                "hashtags": ["#tech", "#launch"],
+                "call_to_action": "Swipe up to learn more!"
+            }
+        },
+        "tone_options": [
+            {"name": "professional", "descriptors": ["authoritative", "precise"]},
+            {"name": "casual", "descriptors": ["friendly", "approachable"]}
+        ]
+    }
+}
