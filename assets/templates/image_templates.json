@@ -1,0 +1,20 @@
+{
+    "product_showcase": {
+        "layout": "modern",
+        "color_palette": ["#2D3047", "#FF3E4D", "#F8C537"],
+        "text_zones": [
+            {"x": 100, "y": 100, "width": 800, "height": 100, "font": "Roboto-Bold", "size": 72},
+            {"x": 100, "y": 800, "width": 800, "height": 200, "font": "Roboto-Regular", "size": 36}
+        ],
+        "safe_zones": {
+            "instagram": {"top": 50, "bottom": 50, "sides": 50},
+            "facebook": {"top": 20, "bottom": 20, "sides": 20}
+        }
+    },
+    "promotional_banner": {
+        "layout": "minimal",
+        "color_palette": ["#FFFFFF", "#000000", "#F0F0F0"],
+        "logo_placement": {"x": 50, "y": 50, "width": 200, "height": 100},
+        "cta_button": {"x": 600, "y": 800, "width": 300, "height": 100}
+    }
+}
