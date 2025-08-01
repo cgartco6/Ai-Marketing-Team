@@ -1,0 +1,27 @@
+{
+    "product_demo": {
+        "duration": 30,
+        "scenes": [
+            {
+                "duration": 5,
+                "type": "intro",
+                "elements": [
+                    {"type": "logo", "start": 0, "end": 5, "animation": "fade_in"},
+                    {"type": "headline", "text": "Introducing Our New Product", "start": 2, "end": 5}
+                ]
+            },
+            {
+                "duration": 15,
+                "type": "features",
+                "elements": [
+                    {"type": "product_shot", "start": 0, "end": 5},
+                    {"type": "text_overlay", "text": "Advanced AI Technology", "start": 5, "end": 10},
+                    {"type": "product_shot", "start": 10, "end": 15}
+                ]
+            }
+        ],
+        "transitions": [
+            {"from": "intro", "to": "features", "type": "crossfade", "duration": 1}
+        ]
+    }
+}
