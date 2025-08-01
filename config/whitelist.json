@@ -1,0 +1,41 @@
+{
+    "processes": [
+        {
+            "name": "python",
+            "description": "Python interpreter",
+            "allowed_paths": [
+                "C:\\Python\\",
+                "/usr/bin/python"
+            ]
+        },
+        {
+            "name": "chrome",
+            "description": "Web browser",
+            "allowed_paths": [
+                "C:\\Program Files\\Google\\Chrome\\"
+            ]
+        }
+    ],
+    "network_connections": [
+        {
+            "ip": "api.openai.com",
+            "ports": ["443"],
+            "description": "OpenAI API endpoint"
+        },
+        {
+            "ip": "127.0.0.1",
+            "ports": ["*"],
+            "description": "Localhost"
+        }
+    ],
+    "file_locations": [
+        {
+            "path": "assets/templates",
+            "access": "read-only"
+        },
+        {
+            "path": "data/campaigns",
+            "access": "read-write"
+        }
+    ]
+}
